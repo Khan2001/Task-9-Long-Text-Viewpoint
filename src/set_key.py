@@ -1,0 +1,57 @@
+"""从剪贴板安全写入 .env，避免手抄错字符。
+
+用法:
+    python src/set_key.py                 # 读剪贴板
+    python src/set_key.py --value sk-xxx  # 显式传入（不推荐，会进 shell 历史）
+只打印长度与首尾几位，不回显完整密钥。
+"""
+
+import argparse
+import os
+import re
+import subprocess
+import sys
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ENV = os.path.join(ROOT, ".env")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--value", help="直接传入密钥；缺省则读 macOS 剪贴板")
+    ap.add_argument("--var", default="DASHSCOPE_API_KEY")
+    ap.add_argument("--base-url", default="", help="同时写入自定义网关地址")
+    args = ap.parse_args()
+
+    if args.value:
+        raw = args.value
+    else:
+        raw = ""
+        if not sys.stdin.isatty():
+            try:
+                raw = sys.stdin.read()
+            except Exception:  # noqa: BLE001
+                raw = ""
+        if not raw.strip():
+            raw = subprocess.run(["pbpaste"], capture_output=True, text=True).stdout or ""
+    key = re.sub(r"^.*?=", "", raw.strip(), count=1) if raw.strip().startswith(args.var) else raw.strip()
+    key = re.sub(r"^['\"]|['\"]$", "", key)
+    key = key.strip().strip("'\"").replace(" ", "")
+    if not key:
+        sys.exit("剪贴板为空：请到平台 API Key 页面点“复制”按钮后再运行")
+    if len(key) < 20 or not key.startswith("sk-"):
+        sys.exit(f"剪贴板内容不像 API Key（长度 {len(key)}，开头 {key[:6]!r}）。"
+                 "请确认复制的是密钥本身，而不是命令或说明文字。")
+
+    lines = [f"{args.var}={key}"]
+    if args.base_url:
+        lines.append(f"DASHSCOPE_BASE_URL={args.base_url}")
+    with open(ENV, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    os.chmod(ENV, 0o600)
+    print(f"已写入 .env：长度 {len(key)}，头 {key[:6]}…，尾 …{key[-3:]}")
+    print("自查: python src/probe_api.py")
+
+
+if __name__ == "__main__":
+    main()
