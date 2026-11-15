@@ -8,5 +8,4 @@ preds/
 .DS_Store
 data/
 lora/
-docs/
 experiments/
