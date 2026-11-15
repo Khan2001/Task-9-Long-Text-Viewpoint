@@ -50,7 +50,7 @@ def example_from_gold(sample, max_issues=5):
 
 
 def assemble(sample, extract_raw, future_raw=None, max_issues=5, report=None, max_groups=3,
-             group_gap=1, pad=0):
+             group_gap=1, pad=0, max_chain_chars=0):
     doc, spans, _ = build_input(sample)
     text = doc["full_text"]
     n_sents = len(spans)
@@ -72,6 +72,18 @@ def assemble(sample, extract_raw, future_raw=None, max_issues=5, report=None, ma
             ids = sorted({i for x in ids for i in range(max(0, x - pad), min(n_sents, x + pad + 1))} - used)
         used.update(ids)
         chain = merge_spans(text, spans, ids, max_groups=max_groups, group_gap=group_gap)
+        if max_chain_chars and sum(len(c) for c in chain) > max_chain_chars:
+            # max_groups 合并会把首尾选中句之间的无关句一并纳入，导致证据过长稀释相似度；
+            # 超限时退回只保留选中的离散原句（仍为原文逐字片段），仍超则按句截到上限。
+            chain = merge_spans(text, spans, ids, max_groups=max(1, len(ids)), group_gap=0)
+            if sum(len(c) for c in chain) > max_chain_chars:
+                trimmed, total = [], 0
+                for seg in chain:
+                    if trimmed and total + len(seg) > max_chain_chars:
+                        break
+                    trimmed.append(seg)
+                    total += len(seg)
+                chain = trimmed or chain[:1]
         if not chain:
             quote = it.get("argument_chain")
             q = quote[0] if isinstance(quote, list) and quote else quote
