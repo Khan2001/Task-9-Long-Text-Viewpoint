@@ -1,5 +1,12 @@
 # 邀请赛｜赛题9 - 谈判对手长文本观点挖掘与预测
 
+## 本项目成果
+
+- **LoRA 微调权重**（基座 Qwen3-32B，r=16 / alpha=32）：[ModelScope · Khanate/Qwen3-32B-Task9-LoRA](https://modelscope.cn/models/Khanate/Qwen3-32B-Task9-LoRA)
+- 方案代码见 `src/`（API/LoRA 推理、检索增强、立场校准、后处理调参），官方指标本地复刻见 `evalkit/`
+- 环境依赖见 `requirements.txt`；微调过程参考 `docs/ChatGPT-LoRA微调指南-20261013-0013.md`
+- 以下为赛题官方说明原文
+
 ## 赛题
 
 ### 一、赛题名称
